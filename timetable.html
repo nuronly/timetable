@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Course Timetable</title>
+    <link rel="stylesheet" href="bootstrap-v5.3.3.min.css">
+    <script src="vue-v3.4.26.js"></script>
+    <script src="bootstrap-v5.3.3.min.js"></script>
+    <script src="timetable.js"></script>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <table>
+            <thead>
+                <tr>
+                    <th colspan="6">Weekly Course Time Table</th>
+                </tr>
+                <tr>
+                    <td colspan="6">
+                        <button class="btn btn-sm mx-1" :class="this.getButtonClass(week)" v-for="week in 16" @click="onWeek(week)">Week {{ week }}</button>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Time</th>
+                    <th>Monday</th>
+                    <th>Tuesday</th>
+                    <th>Wednesday</th>
+                    <th>Thursday</th>
+                    <th>Friday</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="period in 10" :key="period">
+                    <td>Period {{ period }}</td>
+                    <td v-for="day in 5" :key="day" style="white-space: pre-line;">
+                        {{ getCourse(this.week, day, period) }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script>
+        const app = Vue.createApp({
+            data() {
+                const week = this.getCurrentWeekNumber();
+
+                return {
+                    timetable: timetable,
+                    week,
+                }
+            },
+            methods: {
+                getButtonClass(week) {
+                    if (this.week === week) {
+                        return 'btn-primary';
+                    } else {
+                        if (week === this.getCurrentWeekNumber()) {
+                            return 'btn-outline-success';
+                        } else {
+                            return 'btn-outline-primary';
+                        }
+                    }
+                },
+                onWeek(week) {
+                    this.week = week;
+                },
+                getCourse(week, day, period) {
+                    const schedule = this.getSchedule(week, day, period);
+
+                    if (schedule) {
+                        const id = schedule.id;
+                        const course = this.timetable.courses.find(course => course.id === id);
+
+                        if (course) {
+                            const name = course.name;
+                            const location = schedule.location;
+                            const teacher = schedule.teacher || course.teacher;
+                            const score = course.score;
+                            const kind = course.kind == 1 ? '考查' : course.kind == 2 ? '考试' : '未安排';
+
+                            return `${name}(${id})\n${location} ${teacher}\n${kind} 学分(${score})`;
+                        } else {
+                            return `No Course(${id})`;
+                        }
+                    } else {
+                        return `(blank)`;
+                    }
+                },
+                getSchedule(week, day, period) {
+                    const schedule = this.timetable.schedules.find(schedule => {
+                        if ((typeof schedule.week) === 'number' && schedule.week !== week) {
+                            return false;
+                        } else if ((typeof schedule.week) === 'object' && !schedule.week.includes(week)) {
+                            return false;
+                        }
+
+                        if (schedule.day !== day) {
+                            return false;
+                        }
+
+                        if (!schedule.period.includes(period)) {
+                            return false;
+                        }
+
+                        return true;
+                    });
+
+                    return schedule;
+                },
+                getCurrentWeekNumber() {
+                    const currentDate = new Date();
+                    const d0210 = new Date(currentDate.getFullYear(), 1, 10);
+                    const timeDifference = currentDate.getTime() - d0210.getTime();
+                    const millisecondsInAWeek = 1000 * 60 * 60 * 24 * 7;
+                    const weekNumber = Math.floor(timeDifference / millisecondsInAWeek);
+                
+                    return weekNumber;
+                }
+            }
+        })
+
+        app.mount('#app')
+    </script>
+</body>
+</html>

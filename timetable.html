@@ -31,7 +31,14 @@
                 </tr>
                 <tr>
                     <td colspan="6">
-                        <button class="btn btn-sm mx-1" :class="this.getWeekClass(week-1)" v-for="week in this.totalWeeks" @click="onWeek(week-1)">Week {{ week }}</button>
+                        <button class="btn btn-sm mx-1" :class="this.getWeekClass(week-1)" v-for="week in this.totalWeeks" @click="onWeek(week-1)">第 {{ week }} 周</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="7">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm" :class="this.getCourseClass(entry[0])" v-for="(entry, id) in getSummary()" @click="onCourse(entry[0])">{{ entry[1].name }} ({{ entry[0] }}) <span class="badge text-bg-primary rounded-pill">{{ entry[1].times }}</span></li>
+                        </div>
                     </td>
                 </tr>
                 <tr>
@@ -55,9 +62,17 @@
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="period in 10" :key="period">
+                <tr v-for="period in 8" :key="period">
                     <th v-if="period === 1" rowspan="4">上午</th>
                     <th v-if="period === 5" rowspan="4">下午</th>
+                    <th style="white-space: pre-line;">
+                        <div v-html="getPeriod(period)"></div>
+                    </th>
+                    <td v-for="day in 5" :key="day" style="white-space: pre-line;">
+                        <div v-html="getCourse(this.week+1, day, period)" :class="getCourseHighlight(this.week+1, day, period)"></div>
+                    </td>
+                </tr>
+                <tr v-for="period in [9,10]" :key="period">
                     <th v-if="period === 9" rowspan="2">晚上</th>
                     <th style="white-space: pre-line;">
                         <div v-html="getPeriod(period)"></div>
@@ -83,11 +98,15 @@
                     week,
                     totalWeeks,
                     student,
+                    activeCourseId: null,
                 }
             },
             methods: {
                 onWeek(week) {
                     this.week = week;
+                },
+                onCourse(id) {
+                    this.activeCourseId = id;
                 },
                 getPeriod(period) {
                     const periods = ['08:20 ~ 09:05', '09:10 ~ 09:55', '10:20 ~ 11:05', '11:10 ~ 11:55', '13:00 ~ 13:45', '13:50 ~ 14:35', '15:00 ~ 15:45', '15:50~ 16:35', '18:00 ~ 19:00', '19:00 ~ 20:00'];
@@ -125,6 +144,20 @@
                         return '';
                     }
                 },
+                getCourseHighlight(week, day, period) {
+                    const schedule = this.getSchedule(week, day, period);
+
+                    if (schedule) {
+                        const id = schedule.id;
+                        const course = this.timetable.courses.find(course => course.id === id);
+
+                        if (course && this.activeCourseId === id) {
+                            return 'text-bg-primary';
+                        }
+                    }
+
+                    return '';
+                },
                 getSchedule(week, day, period) {
                     const schedule = this.timetable.schedules.find(schedule => {
                         if ((typeof schedule.week) === 'number' && schedule.week !== week) {
@@ -146,6 +179,35 @@
 
                     return schedule;
                 },
+                getSummary() {
+                    const week =  this.week + 1;
+                    const schedules = [];
+
+                    this.timetable.schedules.forEach(schedule => {
+                        if ((typeof schedule.week) === 'number' && schedule.week === week) {
+                            schedules.push(schedule)
+                        } else if ((typeof schedule.week) === 'object' && schedule.week.includes(week)) {
+                            schedules.push(schedule)
+                        }
+                    });
+
+                    const summary = new Map();
+
+                    schedules.forEach(schedule => {
+                        const id = schedule.id;
+
+                        if (summary.has(id)) {
+                            summary.get(id).times += schedule.period.length;
+                        } else {
+                            const times = schedule.period.length;
+                            const name = this.timetable.courses.find(course => course.id === id).name;
+
+                            summary.set(id, {name, times});
+                        }
+                    });
+
+                    return summary;
+                },
                 getCurrentWeekNumber(startDate) {
                     const currentDate = new Date();
                     const timeDifference = currentDate.getTime() - startDate.getTime();
@@ -163,6 +225,13 @@
                         } else {
                             return 'btn-outline-primary';
                         }
+                    }
+                },
+                getCourseClass(id) {
+                    if (this.activeCourseId === id) {
+                        return 'btn-primary';
+                    } else {
+                        return 'btn-outline-primary';
                     }
                 },
             }

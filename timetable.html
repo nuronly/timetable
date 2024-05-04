@@ -9,46 +9,61 @@
     <script src="bootstrap-v5.3.3.min.js"></script>
     <script src="timetable.js"></script>
     <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
         th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
             text-align: center;
+            vertical-align: middle;
         }
-        th {
-            background-color: #f2f2f2;
+        .smaller {
+            font-size: x-small;
+            font-weight: normal;
+        }
+        .bigger {
+            font-size: x-large;
         }
     </style>
 </head>
 <body>
     <div id="app">
-        <table>
+        <table class="table table-bordered">
             <thead>
                 <tr>
-                    <th colspan="6">Weekly Course Time Table</th>
+                    <th colspan="6" class="bigger">2023学年第二学期 课程表 <span class="smaller">({{ this.student }})</span></th>
                 </tr>
                 <tr>
                     <td colspan="6">
-                        <button class="btn btn-sm mx-1" :class="this.getButtonClass(week)" v-for="week in 16" @click="onWeek(week)">Week {{ week }}</button>
+                        <button class="btn btn-sm mx-1" :class="this.getWeekClass(week-1)" v-for="week in this.totalWeeks" @click="onWeek(week-1)">Week {{ week }}</button>
                     </td>
                 </tr>
                 <tr>
-                    <th>Time</th>
-                    <th>Monday</th>
-                    <th>Tuesday</th>
-                    <th>Wednesday</th>
-                    <th>Thursday</th>
-                    <th>Friday</th>
+                    <th>时间段</th>
+                    <th>节次</th>
+                    <th style="white-space: pre-line;">
+                        <div v-html="getWeekDay(1)"></div>
+                    </th>
+                    <th style="white-space: pre-line;">
+                        <div v-html="getWeekDay(2)"></div>
+                    </th>
+                    <th style="white-space: pre-line;">
+                        <div v-html="getWeekDay(3)"></div>
+                    </th>
+                    <th style="white-space: pre-line;">
+                        <div v-html="getWeekDay(4)"></div>
+                    </th>
+                    <th style="white-space: pre-line;">
+                        <div v-html="getWeekDay(5)"></div>
+                    </th>
                 </tr>
             </thead>
             <tbody>
                 <tr v-for="period in 10" :key="period">
-                    <td>Period {{ period }}</td>
+                    <th v-if="period === 1" rowspan="4">上午</th>
+                    <th v-if="period === 5" rowspan="4">下午</th>
+                    <th v-if="period === 9" rowspan="2">晚上</th>
+                    <th style="white-space: pre-line;">
+                        <div v-html="getPeriod(period)"></div>
+                    </th>
                     <td v-for="day in 5" :key="day" style="white-space: pre-line;">
-                        {{ getCourse(this.week, day, period) }}
+                        <div v-html="getCourse(this.week+1, day, period)"></div>
                     </td>
                 </tr>
             </tbody>
@@ -57,27 +72,36 @@
     <script>
         const app = Vue.createApp({
             data() {
-                const week = this.getCurrentWeekNumber();
+                const startDate = new Date('2024-02-11'); // 开学第一周的周一日期
+                const totalWeeks = 16; // 这学期总共多少周
+                const week = this.getCurrentWeekNumber(startDate);
+                const student = "李仕博";
 
                 return {
-                    timetable: timetable,
+                    timetable,
+                    startDate,
                     week,
+                    totalWeeks,
+                    student,
                 }
             },
             methods: {
-                getButtonClass(week) {
-                    if (this.week === week) {
-                        return 'btn-primary';
-                    } else {
-                        if (week === this.getCurrentWeekNumber()) {
-                            return 'btn-outline-success';
-                        } else {
-                            return 'btn-outline-primary';
-                        }
-                    }
-                },
                 onWeek(week) {
                     this.week = week;
+                },
+                getPeriod(period) {
+                    const periods = ['08:20 ~ 09:05', '09:10 ~ 09:55', '10:20 ~ 11:05', '11:10 ~ 11:55', '13:00 ~ 13:45', '13:50 ~ 14:35', '15:00 ~ 15:45', '15:50~ 16:35', '18:00 ~ 19:00', '19:00 ~ 20:00'];
+
+                    return `第 ${period} 节\n<span class="smaller">(${periods[period-1]})</span>`;
+                },
+                getWeekDay(day) {
+                    const days = ['星期一', '星期二', '星期三', '星期四', '星期五'];
+                    const millisecondsInADay = 1000 * 60 * 60 * 24;
+                    const millisecondsInAWeek = millisecondsInADay * 7;
+                    const date = new Date(this.startDate.getTime() + this.week * millisecondsInAWeek + day * millisecondsInADay);
+                    const dateString = date.toLocaleDateString('zh-CN', {year: 'numeric', month: '2-digit', day: '2-digit'}).replace(/\//g, '-');
+
+                    return `${days[day-1]}\n<span class="smaller">${dateString}</span>`;
                 },
                 getCourse(week, day, period) {
                     const schedule = this.getSchedule(week, day, period);
@@ -93,12 +117,12 @@
                             const score = course.score;
                             const kind = course.kind == 1 ? '考查' : course.kind == 2 ? '考试' : '未安排';
 
-                            return `${name}(${id})\n${location} ${teacher}\n${kind} 学分(${score})`;
+                            return `<span class="fw-bold">${name}</span> (${id})\n<span class="smaller">${location} ${teacher}\n${kind} 学分(${score})<span>`;
                         } else {
                             return `No Course(${id})`;
                         }
                     } else {
-                        return `(blank)`;
+                        return '';
                     }
                 },
                 getSchedule(week, day, period) {
@@ -122,15 +146,25 @@
 
                     return schedule;
                 },
-                getCurrentWeekNumber() {
+                getCurrentWeekNumber(startDate) {
                     const currentDate = new Date();
-                    const d0210 = new Date(currentDate.getFullYear(), 1, 10);
-                    const timeDifference = currentDate.getTime() - d0210.getTime();
+                    const timeDifference = currentDate.getTime() - startDate.getTime();
                     const millisecondsInAWeek = 1000 * 60 * 60 * 24 * 7;
-                    const weekNumber = Math.floor(timeDifference / millisecondsInAWeek);
+                    const week = Math.floor(timeDifference / millisecondsInAWeek);
                 
-                    return weekNumber;
-                }
+                    return week;
+                },
+                getWeekClass(week) {
+                    if (this.week === week) {
+                        return 'btn-primary';
+                    } else {
+                        if (this.getCurrentWeekNumber(this.startDate) === week) {
+                            return 'btn-outline-success';
+                        } else {
+                            return 'btn-outline-primary';
+                        }
+                    }
+                },
             }
         })
 
